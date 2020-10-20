@@ -54,7 +54,7 @@ func (st *store) Run() {
 	}
 }
 
-// GetChannel returns currenty Channel
+// GetChannel returns currently Channel
 func (st *store) GetChannel() Channel {
 	resChan := make(chan Channel)
 	st.reqChan <- resChan
