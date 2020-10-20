@@ -3,6 +3,8 @@ package mqi
 import (
 	"log"
 	"os"
+
+	"github.com/streadway/amqp"
 )
 
 func (ch channel) setup() Channel {
@@ -98,5 +100,38 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 	}
 	log.Printf("Consuming a queue [%s]...\n", qName)
 
-	go csm.Func()(msgs, ch.KillChan())
+	go func(msgs <-chan amqp.Delivery, kill <-chan bool, consumerFunc func(msg amqp.Delivery) error) {
+		for {
+			select {
+			case <-kill:
+				log.Println("Shutting down a consumer")
+				return
+			case msg := <-msgs:
+				log.Printf("MSG[%s]: %s\n", msg.RoutingKey, msg.Body)
+
+				if err := consumerFunc(msg); err != nil {
+					log.Printf("Error in consumer function: %v\n", err)
+					sendNack(msg)
+				} else {
+					sendAck(msg)
+				}
+			}
+		}
+	}(msgs, ch.KillChan(), csm.Func())
+}
+
+// sendAck sends ACK to RabbitMQ
+func sendAck(msg amqp.Delivery) {
+	err := msg.Ack(false)
+	if err != nil {
+		log.Printf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
+	}
+}
+
+// sendNack sends NACK to RabbitMQ
+func sendNack(msg amqp.Delivery) {
+	err := msg.Nack(false, true)
+	if err != nil {
+		log.Printf("Failed to send NACK to %d:%v", msg.DeliveryTag, err)
+	}
 }

@@ -5,31 +5,28 @@ import "github.com/streadway/amqp"
 // Consumer struct
 type consumer struct {
 	name string
-	fn   ConsumerFunc
+	fn   func(amqp.Delivery) error
 }
-
-// ConsumerFunc Consumer worker function
-type ConsumerFunc func(msgs <-chan amqp.Delivery, kill <-chan bool)
 
 // Consumer interface
 type Consumer interface {
 	Name() string
-	Func() ConsumerFunc
+	Func() func(msg amqp.Delivery) error
 	WithName(name string) Consumer
-	WithFunc(fn ConsumerFunc) Consumer
+	WithFunc(fn func(msg amqp.Delivery) error) Consumer
 }
 
 // NewConsumer constructor
 func NewConsumer(name string) Consumer { return consumer{}.WithName(name) }
 
 // Getters and withers
-func (csm consumer) Name() string       { return csm.name }
-func (csm consumer) Func() ConsumerFunc { return csm.fn }
+func (csm consumer) Name() string                        { return csm.name }
+func (csm consumer) Func() func(msg amqp.Delivery) error { return csm.fn }
 func (csm consumer) WithName(name string) Consumer {
 	csm.name = name
 	return csm
 }
-func (csm consumer) WithFunc(fn ConsumerFunc) Consumer {
+func (csm consumer) WithFunc(fn func(msg amqp.Delivery) error) Consumer {
 	csm.fn = fn
 	return csm
 }

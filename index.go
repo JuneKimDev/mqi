@@ -58,14 +58,6 @@ func Publish(exchangeName string, topic string, msg amqp.Publishing) error {
 	return nil
 }
 
-// SendAck sends ACK to RabbitMQ
-func SendAck(msg amqp.Delivery) {
-	err := msg.Ack(false)
-	if err != nil {
-		log.Fatalf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
-	}
-}
-
 // Close closes connection and channels
 func Close() {
 	ch := Get().GetChannel()
