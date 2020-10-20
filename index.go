@@ -1,4 +1,5 @@
 // Package mqi is Message Queue Interface using AMQP
+//
 // Requires active running instance of RabbitMQ server
 package mqi
 
