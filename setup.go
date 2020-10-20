@@ -100,16 +100,16 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 	}
 	log.Printf("Consuming a queue [%s]...\n", qName)
 
-	go func(msgs <-chan amqp.Delivery, kill <-chan bool, consumerFunc func(msg amqp.Delivery) error) {
+	go func() {
 		for {
 			select {
-			case <-kill:
+			case <-ch.KillChan():
 				log.Println("Shutting down a consumer")
 				return
 			case msg := <-msgs:
 				log.Printf("MSG[%s]: %s\n", msg.RoutingKey, msg.Body)
 
-				if err := consumerFunc(msg); err != nil {
+				if err := csm.Func()(msg); err != nil {
 					log.Printf("Error in consumer function: %v\n", err)
 					sendNack(msg)
 				} else {
@@ -117,7 +117,7 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 				}
 			}
 		}
-	}(msgs, ch.KillChan(), csm.Func())
+	}()
 }
 
 // sendAck sends ACK to RabbitMQ
