@@ -9,7 +9,7 @@ type consumer struct {
 }
 
 // ConsumerFunc Consumer worker function
-type ConsumerFunc func(ch Channel, msgs <-chan amqp.Delivery, kill <-chan bool)
+type ConsumerFunc func(msgs <-chan amqp.Delivery, kill <-chan bool)
 
 // Consumer interface
 type Consumer interface {

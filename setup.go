@@ -98,5 +98,5 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 	}
 	log.Printf("Consuming a queue [%s]...\n", qName)
 
-	go csm.Func()(ch, msgs, ch.KillChan())
+	go csm.Func()(msgs, ch.KillChan())
 }

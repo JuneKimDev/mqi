@@ -1,4 +1,3 @@
-// mqi is RabbitMQ interface app for perme micro-service architecture
 package mqi
 
 import (
@@ -7,7 +6,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func mockFunc(ch Channel, msgs <-chan amqp.Delivery, kill <-chan bool) {
+func mockFunc(msgs <-chan amqp.Delivery, kill <-chan bool) {
 	log.Println("Inside of mockFunc | Test consumer function")
 }
 
@@ -22,7 +21,7 @@ func getMockChannel() Channel {
 				AddConsumer(NewConsumer("test.consumer2").WithFunc(mockFunc))))
 }
 
-func mockFuncForever(ch Channel, msgs <-chan amqp.Delivery, kill <-chan bool) {
+func mockFuncForever(msgs <-chan amqp.Delivery, kill <-chan bool) {
 	log.Println("Inside of mockFuncForever | Test consumer function")
 	for {
 		select {
