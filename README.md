@@ -4,6 +4,8 @@ Message Queue Interface(MQI) using AMQP
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/JuneKimDev/mqi)](https://pkg.go.dev/github.com/JuneKimDev/mqi)
 [![Go Report Card](https://goreportcard.com/badge/github.com/JuneKimDev/mqi)](https://goreportcard.com/report/github.com/JuneKimDev/mqi)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/JuneKimDev/mqi)
+![GitHub](https://img.shields.io/github/license/JuneKimDev/mqi)
 
 ---
 
