@@ -14,6 +14,7 @@ type Exchange interface {
 	CountAllConsumers() int
 	WithName(name string) Exchange
 	AddQueue(q Queue) Exchange
+	UpdateQueue(q Queue) Exchange
 }
 
 // NewExchange Exchange Constructor
@@ -38,5 +39,15 @@ func (ex exchange) WithName(name string) Exchange {
 // AddQueue adds a Queue
 func (ex exchange) AddQueue(q Queue) Exchange {
 	ex.qs = append(ex.qs, q)
+	return ex
+}
+
+// UpdateQueue updates a Queue
+func (ex exchange) UpdateQueue(q Queue) Exchange {
+	for i := 0; i < ex.CountQueues(); i++ {
+		if ex.qs[i].Name() == q.Name() {
+			ex.qs = append(append(ex.qs[:i], q), ex.qs[i+1:]...)
+		}
+	}
 	return ex
 }
