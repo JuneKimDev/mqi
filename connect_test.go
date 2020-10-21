@@ -3,31 +3,33 @@ package mqi
 import (
 	"log"
 	"testing"
+
+	"github.com/streadway/amqp"
 )
 
 func TestIsReadyFalse(t *testing.T) {
 	falseInputs := make([]Channel, 8)
 	// No Exchange
-	falseInputs[0] = Get().GetChannel().WithURI("")
+	falseInputs[0] = NewChannel(istore).WithURI("")
 	// No Queue
-	falseInputs[1] = Get().GetChannel().WithURI("").WithExchange(NewExchange(""))
+	falseInputs[1] = NewChannel(istore).WithURI("").WithExchange(NewExchange(""))
 	// No Topic
-	falseInputs[2] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").AddQueue(NewQueue("")))
+	falseInputs[2] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").AddQueue(NewQueue("")))
 	// No Consumer
-	falseInputs[3] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").AddQueue(NewQueue("").AddTopic(NewTopic(""))))
+	falseInputs[3] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").AddQueue(NewQueue("").AddTopic(NewTopic(""))))
 	// No ConsumerFunc
-	falseInputs[4] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").
+	falseInputs[4] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").
 		AddQueue(NewQueue("").AddTopic(NewTopic("")).AddConsumer(NewConsumer(""))))
 	// No Topic in 2nd Queue
-	falseInputs[5] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").
+	falseInputs[5] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").
 		AddQueue(NewQueue("").AddTopic(NewTopic("")).AddConsumer(NewConsumer("").WithFunc(mockFunc))).
 		AddQueue(NewQueue("")))
 	// No Consumer in 2nd Queue
-	falseInputs[6] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").
+	falseInputs[6] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").
 		AddQueue(NewQueue("").AddTopic(NewTopic("")).AddConsumer(NewConsumer("").WithFunc(mockFunc))).
 		AddQueue(NewQueue("").AddTopic(NewTopic(""))))
 	// No ConsumerFunc in 2nd Queue
-	falseInputs[7] = Get().GetChannel().WithURI("").WithExchange(NewExchange("").
+	falseInputs[7] = NewChannel(istore).WithURI("").WithExchange(NewExchange("").
 		AddQueue(NewQueue("").AddTopic(NewTopic("")).AddConsumer(NewConsumer("").WithFunc(mockFunc))).
 		AddQueue(NewQueue("").AddTopic(NewTopic("")).AddConsumer(NewConsumer(""))))
 
@@ -42,50 +44,63 @@ func TestIsReadyFalse(t *testing.T) {
 }
 
 func TestIsReadyTrue(t *testing.T) {
-	ch := getMockChannel()
+	getMockChannel()
 
-	result := ch.isReady()
+	result := GetChannel().isReady()
+	if result != nil {
+		t.Error("Supposed to pass but failed at channel readiness check")
+	}
+}
+
+func TestIsReadyWithOptionalQueue(t *testing.T) {
+	getMockChannelWithOptionalQueue()
+
+	result := GetChannel().isReady()
 	if result != nil {
 		t.Error("Supposed to pass but failed at channel readiness check")
 	}
 }
 
 // Integration test
-// func TestKeepTryingToConnectTrue(t *testing.T) {
-// 	ch := Get().GetChannel()
-// 	conn := keepTryingToConnect(ch.URI())
-// 	log.Printf("%#v", conn)
-// }
+func TestKeepTryingToConnectTrue(t *testing.T) {
+	getMockChannel()
+	ch := GetChannel()
+	conn := keepTryingToConnect(ch.URI())
+	log.Printf("%#v", conn)
+}
+
+// Integration test (This will cause test to never stop)
+func TestKeepTryingToConnectFalse(t *testing.T) {
+	getMockChannel()
+	ch := GetChannel().WithURI("amqp://wrong:addr@test.debug:1234/")
+	conn := keepTryingToConnect(ch.URI())
+	if conn != nil {
+		t.Errorf("Supposed to fail but got %v", conn)
+	}
+}
 
 // Integration test
-// This never stops
-// func TestKeepTryingToConnectFalse(t *testing.T) {
-// 	ch := Get().GetChannel().WithURI("amqp://wrong:addr@whatever.com:1234/")
-// 	conn := keepTryingToConnect(ch.URI())
-// 	log.Printf("%#v", conn)
-// }
+func TestEstablish(t *testing.T) {
+	getMockChannel()
+	establish()
+	ch := GetChannel()
+	if ch.Conn() == nil {
+		t.Error("Failed to establish connection")
+	}
+	if ch.Sub() == nil {
+		t.Error("Failed to establish Sub channel")
+	}
+	if ch.Pub() == nil {
+		t.Error("Failed to establish Pub channel")
+	}
+}
 
 // Integration test
-// func TestEstablish(t *testing.T) {
-// 	ch := Get().GetChannel()
-// 	result := ch.establish().(Channel)
-// 	if result.Conn() == nil {
-// 		t.Error("Failed to establish connection")
-// 	}
-// 	if result.Sub() == nil {
-// 		t.Error("Failed to establish Sub channel")
-// 	}
-// 	if result.Pub() == nil {
-// 		t.Error("Failed to establish Pub channel")
-// 	}
-// }
-
-// Integration test
-// func TestConnect(t *testing.T) {
-// 	ch := getMockChannel()
-//
-// 	go ch.connect()
-// 	ch.ErrChan() <- amqp.ErrClosed // Starts the sequence by passing an error
-// 	ch = <-ch.ConnChan()
-// 	log.Printf("%#v", ch)
-// }
+func TestConnect(t *testing.T) {
+	getMockChannel()
+	go connect()
+	GetChannel().ErrChan() <- amqp.ErrClosed // Starts the sequence by passing an error
+	for !GetChannel().IsStarted() {
+	}
+	log.Printf("%#v", GetChannel())
+}
