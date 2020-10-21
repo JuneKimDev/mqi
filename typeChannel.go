@@ -4,16 +4,17 @@ import "github.com/streadway/amqp"
 
 // Channel struct
 type channel struct {
-	uri        string           // RabbitMQ connection string
-	prefetch   int              // Number of prefetch
-	ex         Exchange         // Declared exchange
-	conn       *amqp.Connection // RabbitMQ connection
-	sub        *amqp.Channel    // RabbitMQ channel for subscription
-	pub        *amqp.Channel    // RabbitMQ channel for publishing
-	updateChan chan<- Channel   // Golang channel for updating the state
-	killChan   chan bool
-	errChan    chan *amqp.Error
-	isStarted  bool
+	uri             string           // RabbitMQ connection string
+	prefetch        int              // Number of prefetch
+	ex              Exchange         // Declared exchange
+	conn            *amqp.Connection // RabbitMQ connection
+	sub             *amqp.Channel    // RabbitMQ channel for subscription
+	pub             *amqp.Channel    // RabbitMQ channel for publishing
+	updateChan      chan<- Channel   // Gochannel for updating the state
+	killChan        chan bool        // Gochannel to send kill signal to consumers with forever loop
+	errChan         chan *amqp.Error // Gochannel to report disconnection to RabbitMQ server
+	isStarted       bool             // Start indicator
+	isOptionalQueue bool             // Skips number of queue at the time of setup
 }
 
 // Channel interface
@@ -28,6 +29,7 @@ type Channel interface {
 	KillChan() chan bool
 	ErrChan() chan *amqp.Error
 	IsStarted() bool
+	IsOptionalQueue() bool
 	WithURI(uri string) Channel
 	WithPrefetch(prefetch int) Channel
 	WithExchange(ex Exchange) Channel
@@ -38,15 +40,9 @@ type Channel interface {
 	WithKillChan(c chan bool) Channel
 	WithErrChan(c chan *amqp.Error) Channel
 	WithStarted(b bool) Channel
+	WithOptionalQueue(b bool) Channel
 	Start()
 	isReady() error
-	connect()
-	establish() Channel
-	setup() Channel
-	declareExchange()
-	declareQueue(q Queue)
-	bindQueueWith(q Queue, tp Topic)
-	bindConsumerWith(q Queue, csm Consumer)
 }
 
 // NewChannel constructor
@@ -70,6 +66,7 @@ func (ch channel) UpdateChan() chan<- Channel { return ch.updateChan }
 func (ch channel) KillChan() chan bool        { return ch.killChan }
 func (ch channel) ErrChan() chan *amqp.Error  { return ch.errChan }
 func (ch channel) IsStarted() bool            { return ch.isStarted }
+func (ch channel) IsOptionalQueue() bool      { return ch.isOptionalQueue }
 func (ch channel) WithURI(uri string) Channel {
 	ch.uri = uri
 	return ch
@@ -108,5 +105,9 @@ func (ch channel) WithErrChan(c chan *amqp.Error) Channel {
 }
 func (ch channel) WithStarted(b bool) Channel {
 	ch.isStarted = b
+	return ch
+}
+func (ch channel) WithOptionalQueue(b bool) Channel {
+	ch.isOptionalQueue = b
 	return ch
 }

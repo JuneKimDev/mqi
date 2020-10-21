@@ -13,11 +13,15 @@ import (
 var istore Store
 
 func init() {
-	istore = InitStore()
+	istore = initStore()
 }
 
-// Get returns Store
-func Get() Store { return istore }
+// GetChannel returns currently Channel
+func GetChannel() Channel {
+	resChan := make(chan Channel)
+	istore.ReqChan() <- resChan
+	return <-resChan
+}
 
 // Start connects to RabbitMQ
 func (ch channel) Start() {
@@ -29,17 +33,35 @@ func (ch channel) Start() {
 
 	log.Println("Connecting RabbitMQ sequence initialized")
 
-	go ch.connect()
+	ch.UpdateChan() <- ch // Updates store
+	go connect()
 	ch.ErrChan() <- amqp.ErrClosed // Starts the sequence by passing an error
 
 	// Wait until getting connected
-	for !Get().GetChannel().IsStarted() {
+	for !GetChannel().IsStarted() {
 	}
+}
+
+// AddTempQueue adds a queue which gets auto-deleted after execution of consumer function
+func AddTempQueue(q Queue) Queue {
+	log.Println("Adding a queue...")
+	q = declareTempQueue(q)
+
+	for j := 0; j < q.CountTopics(); j++ {
+		tp := q.TopicAt(j)
+		bindQueueWith(q, tp)
+	}
+
+	for j := 0; j < q.CountConsumers(); j++ {
+		csm := q.ConsumerAt(j)
+		bindTempConsumerWith(q, csm)
+	}
+	return q
 }
 
 // Publish publishes a message with a topic to Exchange
 func Publish(exchangeName string, topic string, msg amqp.Publishing) error {
-	ch := Get().GetChannel()
+	ch := GetChannel()
 	if !ch.IsStarted() {
 		return errors.New("RabbitMQ is not connected currently")
 	}
@@ -60,7 +82,7 @@ func Publish(exchangeName string, topic string, msg amqp.Publishing) error {
 
 // Close closes connection and channels
 func Close() {
-	ch := Get().GetChannel()
+	ch := GetChannel()
 	ch.Conn().Close()
 	ch.Sub().Close()
 	ch.Pub().Close()

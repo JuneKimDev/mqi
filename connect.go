@@ -17,7 +17,10 @@ func (ch channel) isReady() error {
 	if ch.Exchange() == nil {
 		return errors.New("No Exchange is set in Channel")
 	}
-	if ch.Exchange().CountQueues() == 0 {
+
+	// API gateway doesn't require queue declaration at the time of setup
+	// But other services need full queue/topic/consumer declaration at the time of setup
+	if !ch.IsOptionalQueue() && ch.Exchange().CountQueues() == 0 {
 		return fmt.Errorf("No Queues are set in Exchange %s", ch.Exchange().Name())
 	}
 	for i := 0; i < ch.Exchange().CountQueues(); i++ {
@@ -38,14 +41,17 @@ func (ch channel) isReady() error {
 }
 
 // connect (runs forever in goroutine)
-func (ch channel) connect() {
+func connect() {
 
 	// Receive trigger
+	ch := GetChannel()
 	for trigger := range ch.ErrChan() {
 		if trigger == amqp.ErrClosed { // Connection has been closed
 			log.Println("Disconnected from RabbitMQ")
 
-			if ch.IsStarted() {
+			// IsStarted has to be check with current channel
+			ch = GetChannel()
+			if ch.Exchange().CountQueues() != 0 && ch.IsStarted() {
 				// Terminate all consumer goroutines
 				log.Println("Sending kill-signals to Consumer goroutines")
 				for i := 0; i < ch.Exchange().CountAllConsumers(); i++ {
@@ -54,13 +60,13 @@ func (ch channel) connect() {
 			}
 
 			// Set isStarted false
-			ch.UpdateChan() <- ch.WithStarted(false)
+			updateChannelStarted(false)
 
 			// Connect to RabbitMQ
 			log.Println("Connecting to RabbitMQ...")
-
-			// Establish connection and setup; then return it
-			ch.UpdateChan() <- ch.establish().setup().WithStarted(true)
+			establish()
+			setup()
+			updateChannelStarted(true)
 			log.Println("Successfully connected to RabbitMQ")
 		} else {
 			log.Fatalf("Unexpected error occurred: %v", trigger) // Exit b/c failed to setup
@@ -68,8 +74,9 @@ func (ch channel) connect() {
 	}
 }
 
-func (ch channel) establish() Channel {
+func establish() {
 	// Establish connection
+	ch := GetChannel()
 	conn := keepTryingToConnect(ch.URI())
 	conn.NotifyClose(ch.ErrChan()) // Emits close event to channel
 
@@ -98,7 +105,7 @@ func (ch channel) establish() Channel {
 
 	log.Println("Pub channel established successfully")
 
-	return ch.WithConn(conn).WithSub(subCh).WithPub(pubCh)
+	ch.UpdateChan() <- ch.WithConn(conn).WithSub(subCh).WithPub(pubCh)
 }
 
 func keepTryingToConnect(uri string) *amqp.Connection {
@@ -131,7 +138,17 @@ func keepTryingToConnect(uri string) *amqp.Connection {
 		if delayCount == 3 {
 			delayCount = 0
 			delay += 500
+			// Breaker for unit test
+			if uri == "amqp://wrong:addr@test.debug:1234/" {
+				break
+			}
 		}
 		log.Printf("Trying to reconnect to RabbitMQ at %s\n", serverAt)
 	}
+	return nil
+}
+
+func updateChannelStarted(b bool) {
+	ch := GetChannel()
+	ch.UpdateChan() <- ch.WithStarted(b)
 }

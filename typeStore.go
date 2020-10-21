@@ -11,17 +11,15 @@ type Store interface {
 	UpdateChan() chan Channel
 	WithReqChan(ch chan chan Channel) Store
 	WithUpdateChan(ch chan Channel) Store
-	Run()
-	GetChannel() Channel
-	Update(ch Channel)
+	run()
 }
 
-// InitStore ...
-func InitStore() Store {
+// initStore ...
+func initStore() Store {
 	mStore := (&store{}).
 		WithReqChan(make(chan chan Channel)).
 		WithUpdateChan(make(chan Channel))
-	go mStore.Run()
+	go mStore.run()
 	return mStore
 }
 
@@ -37,8 +35,8 @@ func (st *store) WithUpdateChan(ch chan Channel) Store {
 	return st
 }
 
-// Run starts store (runs in goroutine forever)
-func (st *store) Run() {
+// run store (runs in goroutine forever)
+func (st *store) run() {
 	// storage
 	state := NewChannel(st)
 
@@ -52,16 +50,4 @@ func (st *store) Run() {
 			state = newState
 		}
 	}
-}
-
-// GetChannel returns currently Channel
-func (st *store) GetChannel() Channel {
-	resChan := make(chan Channel)
-	st.reqChan <- resChan
-	return <-resChan
-}
-
-// Update updates State
-func (st *store) Update(ch Channel) {
-	st.updateChan <- ch
 }

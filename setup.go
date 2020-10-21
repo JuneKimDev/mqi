@@ -2,36 +2,37 @@ package mqi
 
 import (
 	"log"
-	"os"
 
 	"github.com/streadway/amqp"
 )
 
-func (ch channel) setup() Channel {
+func setup() {
 	log.Println("Setting up RabbitMQ connection...")
 
-	ch.declareExchange()
+	declareExchange()
 
+	ch := GetChannel()
 	for i := 0; i < ch.Exchange().CountQueues(); i++ {
 		q := ch.Exchange().QueueAt(i)
-		ch.declareQueue(q)
+		declareQueue(q)
 
+		ch = GetChannel()
 		for j := 0; j < q.CountTopics(); j++ {
 			tp := q.TopicAt(j)
-			ch.bindQueueWith(q, tp)
+			bindQueueWith(q, tp)
 		}
 
 		for j := 0; j < q.CountConsumers(); j++ {
 			csm := q.ConsumerAt(j)
-			ch.bindConsumerWith(q, csm)
+			bindConsumerWith(q, csm)
 		}
 	}
 
 	log.Println("RabbitMQ connection setup is Done")
-	return ch
 }
 
-func (ch channel) declareExchange() {
+func declareExchange() {
+	ch := GetChannel()
 	exName := ch.Exchange().Name()
 	err := ch.Sub().ExchangeDeclare(
 		exName,  // name
@@ -44,28 +45,53 @@ func (ch channel) declareExchange() {
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare an exchange: %v", err)
-		os.Exit(1) // Exit b/c failed to setup
+		// Exit b/c failed to setup
 	}
 	log.Printf("Declared an exchange [%s] successfully\n", exName)
 }
 
-func (ch channel) declareQueue(q Queue) {
+func declareQueue(q Queue) {
+	ch := GetChannel()
 	qName := q.Name()
-	_, err := ch.Sub().QueueDeclare(
+	ref, err := ch.Sub().QueueDeclare(
 		qName, // queue name
-		true,  // durable
+		true,  // durable; it must follow durability of exchange with which it is binded
 		false, // auto-delete when there are no remaining consumers
 		false, // exclusive
 		false, // no-wait
 		nil,   // arguments
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare a queue [%s]: %v", qName, err) // Exit b/c failed to setup
+		log.Fatalf("Failed to declare a queue [%s]: %v", qName, err)
+		// Exit b/c failed to setup
 	}
+	ch.UpdateChan() <- ch.WithExchange(ch.Exchange().UpdateQueue(q.WithRef(&ref)))
 	log.Printf("Declared a queue [%s] successfully\n", qName)
 }
 
-func (ch channel) bindQueueWith(q Queue, tp Topic) {
+func declareTempQueue(q Queue) Queue {
+	ch := GetChannel()
+	qName := q.Name()
+	// settings for Temporary Queue (auto-delete is on)
+	// As soon as the consumer finishes the execution, the queue will be deleted automatically
+	ref, err := ch.Sub().QueueDeclare(
+		qName, // queue name
+		true,  // durable; it must follow durability of exchange with which it is binded
+		true,  // auto-delete when there are no remaining consumers
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare a queue [%s]: %v", qName, err)
+		// Exit b/c failed to setup
+	}
+	log.Printf("Declared a queue [%s] successfully\n", qName)
+	return q.WithRef(&ref)
+}
+
+func bindQueueWith(q Queue, tp Topic) {
+	ch := GetChannel()
 	exName := ch.Exchange().Name()
 	qName := q.Name()
 	tpName := tp.Name()
@@ -77,13 +103,15 @@ func (ch channel) bindQueueWith(q Queue, tp Topic) {
 		nil,    // args
 	)
 	if err != nil {
-		log.Fatalf("Failed to bind a queue [%s:%s] with [%s]: %v", qName, tpName, exName, err) // Exit b/c failed to setup
+		log.Fatalf("Failed to bind a queue [%s:%s] with [%s]: %v", qName, tpName, exName, err)
+		// Exit b/c failed to setup
 	}
 	log.Printf("Binded a queue [%s:%s] with [%s] successfully\n", qName, tpName, exName)
 }
 
 // runs in goroutine
-func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
+func bindConsumerWith(q Queue, csm Consumer) {
+	ch := GetChannel()
 	qName := q.Name()
 
 	msgs, err := ch.Sub().Consume(
@@ -96,7 +124,8 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 		nil,        // args
 	)
 	if err != nil {
-		log.Fatalf("Failed to consume from [%s]: %v", qName, err) // Exit b/c failed to setup
+		log.Fatalf("Failed to consume from [%s]: %v", qName, err)
+		// Exit b/c failed to setup
 	}
 	log.Printf("Consuming a queue [%s]...\n", qName)
 
@@ -107,8 +136,6 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 				log.Println("Shutting down a consumer")
 				return
 			case msg := <-msgs:
-				log.Printf("MSG[%s]: %s\n", msg.RoutingKey, msg.Body)
-
 				if err := csm.Func()(msg); err != nil {
 					log.Printf("Error in consumer function: %v\n", err)
 					sendNack(msg)
@@ -120,11 +147,43 @@ func (ch channel) bindConsumerWith(q Queue, csm Consumer) {
 	}()
 }
 
+// runs in goroutine; but runs only one time
+func bindTempConsumerWith(q Queue, csm Consumer) {
+	ch := GetChannel()
+	qName := q.Name()
+
+	msgs, err := ch.Sub().Consume(
+		qName,      // queue name
+		csm.Name(), // consumer name
+		false,      // auto-ack
+		false,      // exclusive
+		false,      // no-local
+		false,      // no-wait
+		nil,        // args
+	)
+	if err != nil {
+		log.Fatalf("Failed to consume from [%s]: %v", qName, err)
+		// Exit b/c failed to setup
+	}
+	log.Printf("Consuming a queue [%s]...\n", qName)
+
+	// Consumer in APIGateway doesn't loop forever
+	go func() {
+		msg := <-msgs
+		if err := csm.Func()(msg); err != nil {
+			log.Printf("Error in consumer function: %v\n", err)
+			sendNack(msg)
+		} else {
+			sendAck(msg)
+		}
+	}()
+}
+
 // sendAck sends ACK to RabbitMQ
 func sendAck(msg amqp.Delivery) {
 	err := msg.Ack(false)
 	if err != nil {
-		log.Printf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
+		log.Fatalf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
 	}
 }
 
@@ -132,6 +191,6 @@ func sendAck(msg amqp.Delivery) {
 func sendNack(msg amqp.Delivery) {
 	err := msg.Nack(false, true)
 	if err != nil {
-		log.Printf("Failed to send NACK to %d:%v", msg.DeliveryTag, err)
+		log.Fatalf("Failed to send NACK to %d:%v", msg.DeliveryTag, err)
 	}
 }
