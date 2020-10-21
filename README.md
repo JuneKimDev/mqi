@@ -49,7 +49,7 @@ func mockConsumerFunc(msg amqp.Delivery) error {
 
 // RabbitMQ setup
 func getMockChannelWithConsumer() mqi.Channel {
-  return mqi.Get().GetChannel().
+  return mqi.GetChannel().
     WithExchange(mqi.NewExchange("test.exchange").
       AddQueue(mqi.NewQueue("test.q1").
         AddTopic(mqi.NewTopic("test.topic1")).
