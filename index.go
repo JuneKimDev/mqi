@@ -16,7 +16,7 @@ func init() {
 	istore = initStore()
 }
 
-// GetChannel returns currently Channel
+// GetChannel returns current Channel
 func GetChannel() Channel {
 	resChan := make(chan Channel)
 	istore.ReqChan() <- resChan
