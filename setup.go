@@ -176,6 +176,13 @@ func bindTempConsumerWith(q Queue, csm Consumer) {
 		} else {
 			sendAck(msg)
 		}
+
+		// Drop the consumer
+		if csm.Name() != "" {
+			if err := GetChannel().Sub().Cancel(csm.Name(), true); err != nil {
+				log.Printf("Failed to cancel Consumer[%s]: %v", csm.Name(), err)
+			}
+		}
 	}()
 }
 
