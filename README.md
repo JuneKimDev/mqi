@@ -70,15 +70,3 @@ func main() {
   forever.Wait() // Prevents service from exiting
 }
 ```
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/JuneKimDev/landing/tags).
-
-## Authors
-
-- **June Kim** - _Initial work_ - [Github](https://github.com/JuneKimDev)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
