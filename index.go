@@ -83,7 +83,7 @@ func Publish(exchangeName string, topic string, msg amqp.Publishing) error {
 // Close closes connection and channels
 func Close() {
 	ch := GetChannel()
-	ch.Conn().Close()
 	ch.Sub().Close()
 	ch.Pub().Close()
+	ch.Conn().Close()
 }

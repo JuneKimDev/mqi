@@ -190,7 +190,7 @@ func bindTempConsumerWith(q Queue, csm Consumer) {
 func sendAck(msg amqp.Delivery) {
 	err := msg.Ack(false)
 	if err != nil {
-		log.Fatalf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
+		log.Printf("Failed to send ACK to %d:%v", msg.DeliveryTag, err)
 	}
 }
 
@@ -198,6 +198,6 @@ func sendAck(msg amqp.Delivery) {
 func sendNack(msg amqp.Delivery) {
 	err := msg.Nack(false, true)
 	if err != nil {
-		log.Fatalf("Failed to send NACK to %d:%v", msg.DeliveryTag, err)
+		log.Printf("Failed to send NACK to %d:%v", msg.DeliveryTag, err)
 	}
 }
