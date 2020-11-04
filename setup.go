@@ -177,12 +177,14 @@ func bindTempConsumerWith(q Queue, csm Consumer) {
 			sendAck(msg)
 		}
 
-		// Drop the consumer
-		if csm.Name() != "" {
-			if err := GetChannel().Sub().Cancel(csm.Name(), true); err != nil {
-				log.Printf("Failed to cancel Consumer[%s]: %v", csm.Name(), err)
-			}
-		}
+		// Delete the Queue
+		GetChannel().Sub().QueueDelete(
+			qName, // Queue name
+			false, // ifUnused
+			false, // ifEmpty
+			false, // noWait
+		)
+		log.Printf("[%s] Queue deleted\n", qName)
 	}()
 }
 
