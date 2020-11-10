@@ -15,6 +15,10 @@ func mockFunc(msg amqp.Delivery) error {
 
 func getMockChannel() {
 	GetChannel().UpdateChan() <- NewChannel(istore).
+		WithBroadcast(NewExchange("test.broadcast").
+			AddQueue(NewQueue("test.bcq").
+				AddTopic(NewTopic("test.bctp")).
+				AddConsumer(NewConsumer("test.bccsm").WithFunc(mockFunc)))).
 		WithExchange(NewExchange("test.exchange").
 			AddQueue(NewQueue("test.q1").
 				AddTopic(NewTopic("test.topic1")).
@@ -26,6 +30,10 @@ func getMockChannel() {
 
 func getMockChannelWithOptionalQueue() {
 	GetChannel().UpdateChan() <- NewChannel(istore).WithOptionalQueue(true).
+		WithBroadcast(NewExchange("test.broadcast").
+			AddQueue(NewQueue("test.bcq").
+				AddTopic(NewTopic("test.bctp")).
+				AddConsumer(NewConsumer("test.bccsm").WithFunc(mockFunc)))).
 		WithExchange(NewExchange("test.exchange.api"))
 }
 

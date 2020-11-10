@@ -14,10 +14,31 @@ func (ch channel) isReady() error {
 	if ch.URI() == "amqp://guest:guest@localhost:5672/" {
 		log.Println("Warning! You are using the default connection string for RabbitMQ.")
 	}
+
+	// Check Broadcast exchange
+	if ch.Broadcast() == nil {
+		return errors.New("No Broadcast Exchange is set in Channel")
+	}
+	if ch.Broadcast().CountQueues() != 1 {
+		return fmt.Errorf("Broadcast Exchange has more than one queues-got %d queues",
+			ch.Broadcast().CountQueues())
+	}
+	if ch.Broadcast().QueueAt(0).CountTopics() != 1 {
+		return fmt.Errorf("Broadcast Queue has more than one topic-got %d topic",
+			ch.Broadcast().QueueAt(0).CountTopics())
+	}
+	if ch.Broadcast().QueueAt(0).CountConsumers() != 1 {
+		return fmt.Errorf("Broadcast Queue has more than one consumer-got %d consumers",
+			ch.Broadcast().QueueAt(0).CountConsumers())
+	}
+	if ch.Broadcast().QueueAt(0).ConsumerAt(0).Func() == nil {
+		return errors.New("No ConsumerFunc is set in Broadcast Consumer")
+	}
+
+	// Check exchange
 	if ch.Exchange() == nil {
 		return errors.New("No Exchange is set in Channel")
 	}
-
 	// API gateway doesn't require queue declaration at the time of setup
 	// But other services need full queue/topic/consumer declaration at the time of setup
 	if !ch.IsOptionalQueue() && ch.Exchange().CountQueues() == 0 {
@@ -51,11 +72,17 @@ func connect() {
 
 			// IsStarted has to be check with current channel
 			ch = GetChannel()
-			if ch.Exchange().CountQueues() != 0 && ch.IsStarted() {
-				// Terminate all consumer goroutines
+			if ch.IsStarted() {
 				log.Println("Sending kill-signals to Consumer goroutines")
-				for i := 0; i < ch.Exchange().CountAllConsumers(); i++ {
-					ch.KillChan() <- true
+
+				// one for broadcast consumer; order doesn't matter for all consumers will get one eventually
+				ch.KillChan() <- true
+
+				// Terminate all consumer goroutines
+				if ch.Exchange().CountQueues() != 0 {
+					for i := 0; i < ch.Exchange().CountAllConsumers(); i++ {
+						ch.KillChan() <- true
+					}
 				}
 			}
 

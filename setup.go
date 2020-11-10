@@ -9,9 +9,19 @@ import (
 func setup() {
 	log.Println("Setting up RabbitMQ connection...")
 
-	declareExchange()
-
 	ch := GetChannel()
+
+	// Setup broadcast
+	declareBroadcast()
+	bcq := ch.Broadcast().QueueAt(0)
+	declareQueue(bcq)
+	bctp := bcq.TopicAt(0)
+	bindQueueWith(bcq, bctp)
+	bccsm := bcq.ConsumerAt(0)
+	bindConsumerWith(bcq, bccsm)
+
+	// Setup normals
+	declareExchange()
 	for i := 0; i < ch.Exchange().CountQueues(); i++ {
 		q := ch.Exchange().QueueAt(i)
 		declareQueue(q)
@@ -29,6 +39,25 @@ func setup() {
 	}
 
 	log.Println("RabbitMQ connection setup is Done")
+}
+
+func declareBroadcast() {
+	ch := GetChannel()
+	exName := ch.Broadcast().Name()
+	err := ch.Sub().ExchangeDeclare(
+		exName,   // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare the broadcast exchange: %v", err)
+		// Exit b/c failed to setup
+	}
+	log.Printf("Declared the broadcast exchange [%s] successfully\n", exName)
 }
 
 func declareExchange() {

@@ -7,6 +7,7 @@ type channel struct {
 	uri             string           // RabbitMQ connection string
 	prefetch        int              // Number of prefetch
 	ex              Exchange         // Declared exchange
+	cast            Exchange         // Broadcasting exchange
 	conn            *amqp.Connection // RabbitMQ connection
 	sub             *amqp.Channel    // RabbitMQ channel for subscription
 	pub             *amqp.Channel    // RabbitMQ channel for publishing
@@ -22,6 +23,7 @@ type Channel interface {
 	URI() string
 	Prefetch() int
 	Exchange() Exchange
+	Broadcast() Exchange
 	Conn() *amqp.Connection
 	Sub() *amqp.Channel
 	Pub() *amqp.Channel
@@ -33,6 +35,7 @@ type Channel interface {
 	WithURI(uri string) Channel
 	WithPrefetch(prefetch int) Channel
 	WithExchange(ex Exchange) Channel
+	WithBroadcast(ex Exchange) Channel
 	WithConn(conn *amqp.Connection) Channel
 	WithSub(sub *amqp.Channel) Channel
 	WithPub(pub *amqp.Channel) Channel
@@ -59,6 +62,7 @@ func NewChannel(st Store) Channel {
 func (ch channel) URI() string                { return ch.uri }
 func (ch channel) Prefetch() int              { return ch.prefetch }
 func (ch channel) Exchange() Exchange         { return ch.ex }
+func (ch channel) Broadcast() Exchange        { return ch.cast }
 func (ch channel) Conn() *amqp.Connection     { return ch.conn }
 func (ch channel) Sub() *amqp.Channel         { return ch.sub }
 func (ch channel) Pub() *amqp.Channel         { return ch.pub }
@@ -77,6 +81,10 @@ func (ch channel) WithPrefetch(prefetch int) Channel {
 }
 func (ch channel) WithExchange(ex Exchange) Channel {
 	ch.ex = ex
+	return ch
+}
+func (ch channel) WithBroadcast(cast Exchange) Channel {
+	ch.cast = cast
 	return ch
 }
 func (ch channel) WithConn(conn *amqp.Connection) Channel {
