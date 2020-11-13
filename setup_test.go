@@ -15,8 +15,8 @@ func mockFunc(msg amqp.Delivery) error {
 
 func getMockChannel() {
 	GetChannel().UpdateChan() <- NewChannel(istore).
-		WithBroadcast(NewExchange("test.broadcast").
-			AddQueue(NewQueue("test.bcq").
+		WithBroadcast(NewBroadcast("test.broadcast").
+			AddQueue(NewBroadcastQueue().
 				AddTopic(NewTopic("test.bctp")).
 				AddConsumer(NewConsumer("test.bccsm").WithFunc(mockFunc)))).
 		WithExchange(NewExchange("test.exchange").
@@ -30,8 +30,8 @@ func getMockChannel() {
 
 func getMockChannelWithOptionalQueue() {
 	GetChannel().UpdateChan() <- NewChannel(istore).WithOptionalQueue(true).
-		WithBroadcast(NewExchange("test.broadcast").
-			AddQueue(NewQueue("test.bcq").
+		WithBroadcast(NewBroadcast("test.broadcast").
+			AddQueue(NewBroadcastQueue().
 				AddTopic(NewTopic("test.bctp")).
 				AddConsumer(NewConsumer("test.bccsm").WithFunc(mockFunc)))).
 		WithExchange(NewExchange("test.exchange.api"))
@@ -50,13 +50,13 @@ func TestSetup(t *testing.T) {
 }
 
 // Integration test
-func TestSetupWithOptionalQueue(t *testing.T) {
+func TestAddTempQueue(t *testing.T) {
 	getMockChannelWithOptionalQueue()
 	establish()
 	setup()
-	q := NewQueue("test.q1.temp").
+	q := NewTempQueue("test.q1.temp").
 		AddTopic(NewTopic("test.topic1.temp")).
-		AddConsumer(NewConsumer("test.consumer1.temp").WithFunc(mockFunc))
+		AddConsumer(NewTempConsumer("test.consumer1.temp").WithFunc(mockFunc))
 	q = AddTempQueue(q)
 
 	if q.Ref() == nil {

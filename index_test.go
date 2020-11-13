@@ -21,5 +21,5 @@ func TestMQIFlow(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to publish: %v", err)
 	}
-	Close()
+	// Close()
 }

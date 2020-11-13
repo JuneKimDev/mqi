@@ -42,23 +42,6 @@ func (ch channel) Start() {
 	}
 }
 
-// AddTempQueue adds a queue which gets auto-deleted after execution of consumer function
-func AddTempQueue(q Queue) Queue {
-	log.Println("Adding a queue...")
-	q = declareTempQueue(q)
-
-	for j := 0; j < q.CountTopics(); j++ {
-		tp := q.TopicAt(j)
-		bindQueueWith(q, tp)
-	}
-
-	for j := 0; j < q.CountConsumers(); j++ {
-		csm := q.ConsumerAt(j)
-		bindTempConsumerWith(q, csm)
-	}
-	return q
-}
-
 // Publish publishes a message with a topic to Exchange
 func Publish(exchangeName string, topic string, msg amqp.Publishing) error {
 	ch := GetChannel()
