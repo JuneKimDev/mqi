@@ -130,6 +130,10 @@ func (q queue) declare() Queue {
 		// Exit b/c failed to setup
 	}
 	dq := q.WithRef(&ref)
+	if qName == "" {
+		qName = ref.Name
+		dq = dq.WithName(qName)
+	}
 	if dq.TypeString() == "cast" {
 		ch.UpdateChan() <- ch.WithBroadcast(ch.Broadcast().UpdateQueue(dq))
 	} else if dq.TypeString() != "temp" {
